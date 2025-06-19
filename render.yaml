@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: qrreader-backend
+    env: python
+    plan: free
+    buildCommand: ""
+    startCommand: "python app.py"
+    region: oregon
+    branch: main
+    repo: https://github.com/Rickhc05/qrreader
