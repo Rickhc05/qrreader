@@ -44,7 +44,7 @@ def leer_credencial():
     except Exception as e:
         return jsonify({"error": f"Error al procesar la URL: {str(e)}"}), 500
 
-# ---------- GUARDAR CREDENCIAL ----------
+# ---------- GUARDAR O ACTUALIZAR CREDENCIAL ----------
 @app.route("/api/guardar-credencial", methods=["POST"])
 def guardar_credencial():
     data = request.get_json()
@@ -66,33 +66,59 @@ def guardar_credencial():
 
         # Verificar si ya existe
         cur.execute("SELECT COUNT(*) FROM credenciales WHERE numero_credencial = %s", (data["numeroCredencial"],))
-        if cur.fetchone()[0] > 0:
+        existe = cur.fetchone()[0] > 0
+
+        if existe:
+            # 🔁 ACTUALIZAR
+            cur.execute("""
+                UPDATE credenciales SET
+                    nombres = %s,
+                    apellido_paterno = %s,
+                    apellido_materno = %s,
+                    email = %s,
+                    telefono = %s,
+                    rubro = %s,
+                    sector = %s,
+                    empresa = %s,
+                    ubicacion = %s,
+                    funcion_cargo = %s,
+                    negocio = %s,
+                    resumen = %s,
+                    fecha_registro = %s
+                WHERE numero_credencial = %s
+            """, (
+                data["nombres"], data["apellidoPaterno"], data["apellidoMaterno"],
+                data["email"], data["telefono"], data["rubro"], data["sector"],
+                data["empresa"], data["ubicacion"], data["funcionCargo"], data["negocio"],
+                data["resumen"], data["fecha_registro"],
+                data["numeroCredencial"]
+            ))
+            conn.commit()
             cur.close()
             conn.close()
-            return jsonify({"mensaje": "La credencial ya fue registrada."}), 200
+            return jsonify({"mensaje": "Credencial actualizada correctamente."})
 
-        # Insertar nueva fila
-        cur.execute("""
-            INSERT INTO credenciales (
-                numero_credencial, nombres, apellido_paterno, apellido_materno,
-                email, telefono, rubro, sector, empresa, ubicacion, funcion_cargo,
-                negocio, resumen, fecha_registro
-            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-        """, (
-            data["numeroCredencial"], data["nombres"], data["apellidoPaterno"], data["apellidoMaterno"],
-            data["email"], data["telefono"], data["rubro"], data["sector"],
-            data["empresa"], data["ubicacion"], data["funcionCargo"], data["negocio"],
-            data["resumen"], data["fecha_registro"]
-        ))
-
-        conn.commit()
-        cur.close()
-        conn.close()
-
-        return jsonify({"mensaje": "Credencial guardada exitosamente."})
+        else:
+            # ➕ INSERTAR
+            cur.execute("""
+                INSERT INTO credenciales (
+                    numero_credencial, nombres, apellido_paterno, apellido_materno,
+                    email, telefono, rubro, sector, empresa, ubicacion, funcion_cargo,
+                    negocio, resumen, fecha_registro
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """, (
+                data["numeroCredencial"], data["nombres"], data["apellidoPaterno"], data["apellidoMaterno"],
+                data["email"], data["telefono"], data["rubro"], data["sector"],
+                data["empresa"], data["ubicacion"], data["funcionCargo"], data["negocio"],
+                data["resumen"], data["fecha_registro"]
+            ))
+            conn.commit()
+            cur.close()
+            conn.close()
+            return jsonify({"mensaje": "Credencial guardada exitosamente."})
 
     except Exception as e:
-        return jsonify({"error": f"No se pudo guardar la credencial: {str(e)}"}), 500
+        return jsonify({"error": f"No se pudo guardar/actualizar la credencial: {str(e)}"}), 500
 
 # ---------- VERIFICAR SI EXISTE CREDENCIAL ----------
 @app.route("/api/verificar-credencial", methods=["POST"])
@@ -112,7 +138,7 @@ def verificar_credencial():
     except Exception as e:
         return jsonify({"error": f"No se pudo verificar la credencial: {str(e)}"}), 500
 
-# ---------- FUNCION AUXILIAR PARA BUSCAR CREDENCIAL ----------
+# ---------- BUSCAR UNA CREDENCIAL POR NÚMERO ----------
 def buscar_credencial_por_numero(numero):
     conn = get_connection()
     cur = conn.cursor()
@@ -154,6 +180,6 @@ def buscar_credencial_por_numero(numero):
         conn.close()
         raise e
 
-# ---------- SOLO PARA DESARROLLO LOCAL ----------
+# ---------- EJECUCIÓN LOCAL ----------
 if __name__ == "__main__":
     app.run(debug=False)
