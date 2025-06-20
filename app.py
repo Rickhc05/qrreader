@@ -2,13 +2,12 @@ from flask import Flask, request, jsonify
 import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
-import os
 import psycopg2
 
 app = Flask(__name__)
 
-# Render define esta variable automáticamente
-DATABASE_URL = os.environ.get("DATABASE_URL")
+# 🔐 Cadena de conexión directa (no recomendable en producción)
+DATABASE_URL = "postgresql://qrdb_mq6o_user:QzNkFbGBSKMpKTh2kljkMUDe46LKJ9zh@dpg-d1a4je2dbo4c73c4qd9g-a.oregon-postgres.render.com:5432/qrdb_mq6o"
 
 def get_connection():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
