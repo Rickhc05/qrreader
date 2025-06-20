@@ -6,13 +6,13 @@ import psycopg2
 
 app = Flask(__name__)
 
-# 🔐 Cadena de conexión directa (no recomendable en producción)
+# 🔐 Conexión PostgreSQL (Render)
 DATABASE_URL = "postgresql://qrdb_mq6o_user:QzNkFbGBSKMpKTh2kljkMUDe46LKJ9zh@dpg-d1a4je2dbo4c73c4qd9g-a.oregon-postgres.render.com:5432/qrdb_mq6o"
 
 def get_connection():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
 
-# ---------- RUTA PARA LEER CREDENCIAL (SCRAPING) ----------
+# ---------- LECTURA DE DATOS POR SCRAPING ----------
 @app.route("/api/leer-credencial", methods=["POST"])
 def leer_credencial():
     data = request.get_json()
@@ -44,7 +44,7 @@ def leer_credencial():
     except Exception as e:
         return jsonify({"error": f"Error al procesar la URL: {str(e)}"}), 500
 
-# ---------- RUTA PARA GUARDAR CREDENCIAL EN PostgreSQL ----------
+# ---------- GUARDAR CREDENCIAL ----------
 @app.route("/api/guardar-credencial", methods=["POST"])
 def guardar_credencial():
     data = request.get_json()
@@ -64,9 +64,11 @@ def guardar_credencial():
         conn = get_connection()
         cur = conn.cursor()
 
-        # Verificar duplicado
+        # Verificar si ya existe
         cur.execute("SELECT COUNT(*) FROM credenciales WHERE numero_credencial = %s", (data["numeroCredencial"],))
         if cur.fetchone()[0] > 0:
+            cur.close()
+            conn.close()
             return jsonify({"mensaje": "La credencial ya fue registrada."}), 200
 
         # Insertar nueva fila
@@ -91,26 +93,67 @@ def guardar_credencial():
 
     except Exception as e:
         return jsonify({"error": f"No se pudo guardar la credencial: {str(e)}"}), 500
-    
 
-
+# ---------- VERIFICAR SI EXISTE CREDENCIAL ----------
 @app.route("/api/verificar-credencial", methods=["POST"])
 def verificar_credencial():
-    data = request.json
+    data = request.get_json()
     numero = data.get("numeroCredencial")
 
     if not numero:
         return jsonify({"error": "Número inválido"}), 400
 
-    # Suponiendo que estás usando una base de datos con búsqueda
-    resultado = buscar_credencial_por_numero(numero)
+    try:
+        resultado = buscar_credencial_por_numero(numero)
+        if resultado:
+            return jsonify({"registrado": True, "datos": resultado})
+        else:
+            return jsonify({"registrado": False})
+    except Exception as e:
+        return jsonify({"error": f"No se pudo verificar la credencial: {str(e)}"}), 500
 
-    if resultado:
-        return jsonify({"registrado": True, "datos": resultado})
-    else:
-        return jsonify({"registrado": False})
+# ---------- FUNCION AUXILIAR PARA BUSCAR CREDENCIAL ----------
+def buscar_credencial_por_numero(numero):
+    conn = get_connection()
+    cur = conn.cursor()
 
+    try:
+        cur.execute("""
+            SELECT 
+                numero_credencial, nombres, apellido_paterno, apellido_materno,
+                email, telefono, rubro, sector, empresa, ubicacion, funcion_cargo,
+                negocio, resumen
+            FROM credenciales
+            WHERE numero_credencial = %s
+        """, (numero,))
 
-# ---------- SOLO PARA LOCAL ----------
+        fila = cur.fetchone()
+        cur.close()
+        conn.close()
+
+        if fila:
+            return {
+                "numeroCredencial": fila[0],
+                "nombres": fila[1],
+                "apellidoPaterno": fila[2],
+                "apellidoMaterno": fila[3],
+                "email": fila[4],
+                "telefono": fila[5],
+                "rubro": fila[6],
+                "sector": fila[7],
+                "empresa": fila[8],
+                "ubicacion": fila[9],
+                "funcionCargo": fila[10],
+                "negocio": fila[11],
+                "resumen": fila[12]
+            }
+        else:
+            return None
+    except Exception as e:
+        cur.close()
+        conn.close()
+        raise e
+
+# ---------- SOLO PARA DESARROLLO LOCAL ----------
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=False)
