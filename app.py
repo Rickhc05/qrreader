@@ -91,6 +91,25 @@ def guardar_credencial():
 
     except Exception as e:
         return jsonify({"error": f"No se pudo guardar la credencial: {str(e)}"}), 500
+    
+
+
+@app.route("/api/verificar-credencial", methods=["POST"])
+def verificar_credencial():
+    data = request.json
+    numero = data.get("numeroCredencial")
+
+    if not numero:
+        return jsonify({"error": "Número inválido"}), 400
+
+    # Suponiendo que estás usando una base de datos con búsqueda
+    resultado = buscar_credencial_por_numero(numero)
+
+    if resultado:
+        return jsonify({"registrado": True, "datos": resultado})
+    else:
+        return jsonify({"registrado": False})
+
 
 # ---------- SOLO PARA LOCAL ----------
 if __name__ == "__main__":
