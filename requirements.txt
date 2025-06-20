@@ -1,4 +1,5 @@
 gunicorn
+psycopg2-binary
 flask
 requests
 beautifulsoup4

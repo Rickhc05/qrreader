@@ -1,19 +1,24 @@
 from flask import Flask, request, jsonify
 import requests
 from bs4 import BeautifulSoup
-import os
-import pandas as pd
 from datetime import datetime
+import os
+import psycopg2
 
-app = Flask(__name__)  # 👈 ESTA es la instancia que gunicorn necesita encontrar
+app = Flask(__name__)
 
-ARCHIVO_EXCEL = "credenciales.xlsx"
+# Render define esta variable automáticamente
+DATABASE_URL = os.environ.get("DATABASE_URL")
 
-# ---------- RUTA PARA LEER CREDENCIAL ----------
+def get_connection():
+    return psycopg2.connect(DATABASE_URL, sslmode='require')
+
+# ---------- RUTA PARA LEER CREDENCIAL (SCRAPING) ----------
 @app.route("/api/leer-credencial", methods=["POST"])
 def leer_credencial():
     data = request.get_json()
     url = data.get("url")
+
     if not url:
         return jsonify({"error": "URL faltante"}), 400
 
@@ -40,7 +45,7 @@ def leer_credencial():
     except Exception as e:
         return jsonify({"error": f"Error al procesar la URL: {str(e)}"}), 500
 
-# ---------- RUTA PARA GUARDAR CREDENCIAL ----------
+# ---------- RUTA PARA GUARDAR CREDENCIAL EN PostgreSQL ----------
 @app.route("/api/guardar-credencial", methods=["POST"])
 def guardar_credencial():
     data = request.get_json()
@@ -57,20 +62,37 @@ def guardar_credencial():
     data["fecha_registro"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     try:
-        if os.path.exists(ARCHIVO_EXCEL):
-            df = pd.read_excel(ARCHIVO_EXCEL)
-            if data["numeroCredencial"] in df["numeroCredencial"].astype(str).values:
-                return jsonify({"mensaje": "La credencial ya fue registrada."}), 200
-            df = pd.concat([df, pd.DataFrame([data])], ignore_index=True)
-        else:
-            df = pd.DataFrame([data])
+        conn = get_connection()
+        cur = conn.cursor()
 
-        df.to_excel(ARCHIVO_EXCEL, index=False)
+        # Verificar duplicado
+        cur.execute("SELECT COUNT(*) FROM credenciales WHERE numero_credencial = %s", (data["numeroCredencial"],))
+        if cur.fetchone()[0] > 0:
+            return jsonify({"mensaje": "La credencial ya fue registrada."}), 200
+
+        # Insertar nueva fila
+        cur.execute("""
+            INSERT INTO credenciales (
+                numero_credencial, nombres, apellido_paterno, apellido_materno,
+                email, telefono, rubro, sector, empresa, ubicacion, funcion_cargo,
+                negocio, resumen, fecha_registro
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+        """, (
+            data["numeroCredencial"], data["nombres"], data["apellidoPaterno"], data["apellidoMaterno"],
+            data["email"], data["telefono"], data["rubro"], data["sector"],
+            data["empresa"], data["ubicacion"], data["funcionCargo"], data["negocio"],
+            data["resumen"], data["fecha_registro"]
+        ))
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
         return jsonify({"mensaje": "Credencial guardada exitosamente."})
 
     except Exception as e:
         return jsonify({"error": f"No se pudo guardar la credencial: {str(e)}"}), 500
 
-# ---------- SOLO para correr localmente ----------
+# ---------- SOLO PARA LOCAL ----------
 if __name__ == "__main__":
     app.run(debug=True)
