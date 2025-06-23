@@ -3,11 +3,16 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import datetime
 import psycopg2
+import os
+import json
 
 app = Flask(__name__)
 
 # 🔐 Conexión PostgreSQL (Render)
 DATABASE_URL = "postgresql://qrdb_mq6o_user:QzNkFbGBSKMpKTh2kljkMUDe46LKJ9zh@dpg-d1a4je2dbo4c73c4qd9g-a.oregon-postgres.render.com:5432/qrdb_mq6o"
+
+# 📄 Ruta al archivo JSON local
+JSON_PATH = os.path.join(os.path.dirname(__file__), "map_pe.json")
 
 def get_connection():
     return psycopg2.connect(DATABASE_URL, sslmode='require')
@@ -179,12 +184,8 @@ def buscar_credencial_por_numero(numero):
         cur.close()
         conn.close()
         raise e
-    
 
-
-
-
-# /api/empresas
+# ---------- EMPRESAS DESDE BD O JSON ----------
 @app.route("/api/empresas", methods=["GET"])
 def obtener_empresas():
     try:
@@ -194,11 +195,13 @@ def obtener_empresas():
         empresas = [row[0] for row in cur.fetchall()]
         cur.close()
         conn.close()
-        return jsonify(empresas)
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
 
-# /api/ubicaciones
+        if not empresas:
+            empresas = leer_desde_json("empresas")
+        return jsonify(empresas)
+    except Exception:
+        return jsonify(leer_desde_json("empresas"))
+
 @app.route("/api/ubicaciones", methods=["GET"])
 def obtener_ubicaciones():
     try:
@@ -208,12 +211,30 @@ def obtener_ubicaciones():
         ubicaciones = [row[0] for row in cur.fetchall()]
         cur.close()
         conn.close()
+
+        if not ubicaciones:
+            ubicaciones = leer_desde_json("ubicaciones")
         return jsonify(ubicaciones)
+    except Exception:
+        return jsonify(leer_desde_json("ubicaciones"))
+
+def leer_desde_json(clave):
+    try:
+        with open(JSON_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+            return data.get(clave, [])
+    except Exception as e:
+        print(f"Error al leer JSON: {e}")
+        return []
+
+@app.route("/api/debug-json", methods=["GET"])
+def debug_json():
+    try:
+        with open(JSON_PATH, encoding="utf-8") as f:
+            data = json.load(f)
+            return jsonify({"empresas": data.get("empresas", []), "ubicaciones": data.get("ubicaciones", [])})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
-
-
 
 # ---------- EJECUCIÓN LOCAL ----------
 if __name__ == "__main__":
