@@ -201,22 +201,13 @@ def obtener_empresas():
         return jsonify(empresas)
     except Exception:
         return jsonify(leer_desde_json("empresas"))
+    
+    
 
 @app.route("/api/ubicaciones", methods=["GET"])
 def obtener_ubicaciones():
-    try:
-        conn = get_connection()
-        cur = conn.cursor()
-        cur.execute("SELECT DISTINCT ubicacion FROM credenciales WHERE ubicacion IS NOT NULL AND ubicacion <> ''")
-        ubicaciones = [row[0] for row in cur.fetchall()]
-        cur.close()
-        conn.close()
+    return jsonify(leer_desde_json("ubicaciones"))
 
-        if not ubicaciones:
-            ubicaciones = leer_desde_json("ubicaciones")
-        return jsonify(ubicaciones)
-    except Exception:
-        return jsonify(leer_desde_json("ubicaciones"))
 
 def leer_desde_json(clave):
     try:
