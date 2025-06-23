@@ -202,7 +202,7 @@ def obtener_empresas():
     except Exception:
         return jsonify(leer_desde_json("empresas"))
     
-    
+
 
 @app.route("/api/ubicaciones", methods=["GET"])
 def obtener_ubicaciones():
@@ -215,11 +215,10 @@ def leer_desde_json(clave):
             data = json.load(f)
 
             if clave == "ubicaciones":
-                resultado = []
+                resultado = set()
                 for departamento, provincias in data.items():
-                    for provincia, distritos in provincias.items():
-                        for distrito in distritos:
-                            resultado.append(f"{distrito}, {provincia}, {departamento}")
+                    for provincia in provincias:
+                        resultado.add(f"{provincia}, {departamento}")
                 return sorted(resultado)
 
             elif clave == "empresas":
@@ -229,6 +228,7 @@ def leer_desde_json(clave):
     except Exception as e:
         print(f"Error al leer JSON: {e}")
         return []
+
 
 
 
