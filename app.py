@@ -227,7 +227,7 @@ def leer_desde_json(clave):
                 resultado = []
                 for departamento, provincias in data.items():
                     for provincia, distritos in provincias.items():
-                        for distrito in distritos:
+                        for distrito in distritos.keys():
                             resultado.append(f"{distrito}, {provincia}")
                 return sorted(resultado)
 
