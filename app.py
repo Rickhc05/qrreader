@@ -202,31 +202,44 @@ def obtener_empresas():
     except Exception:
         return jsonify(leer_desde_json("empresas"))
     
-
-
 @app.route("/api/ubicaciones", methods=["GET"])
 def obtener_ubicaciones():
-    return jsonify(leer_desde_json("ubicaciones"))
+    query = request.args.get("q", "").strip().lower()
 
+    try:
+        # Desde la base de datos
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("""
+            SELECT DISTINCT ubicacion 
+            FROM credenciales 
+            WHERE ubicacion ILIKE %s 
+            LIMIT 20
+        """, (f"%{query}%",))
+        ubicaciones = [row[0] for row in cur.fetchall()]
+        cur.close()
+        conn.close()
 
-def leer_desde_json(clave):
+        # Si no hay resultados, busca en el JSON
+        if not ubicaciones:
+            ubicaciones = buscar_ubicaciones_json(query)
+        return jsonify(ubicaciones)
+    except Exception as e:
+        return jsonify(buscar_ubicaciones_json(query))
+
+def buscar_ubicaciones_json(query):
     try:
         with open(JSON_PATH, encoding="utf-8") as f:
             data = json.load(f)
-
-            if clave == "ubicaciones":
-                resultado = set()
-                for departamento, provincias in data.items():
-                    for provincia in provincias:
+            resultado = set()
+            for departamento, provincias in data.items():
+                for provincia in provincias:
+                    texto = f"{provincia}, {departamento}".lower()
+                    if query in texto:
                         resultado.add(f"{provincia}, {departamento}")
-                return sorted(resultado)
-
-            elif clave == "empresas":
-                return data.get("empresas", [])
-            else:
-                return []
+            return sorted(resultado)[:20]  # Solo 20 resultados
     except Exception as e:
-        print(f"Error al leer JSON: {e}")
+        print(f"Error al buscar en JSON: {e}")
         return []
 
 
