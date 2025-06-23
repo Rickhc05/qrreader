@@ -227,8 +227,8 @@ def leer_desde_json(clave):
                 resultado = []
                 for departamento, provincias in data.items():
                     for provincia, distritos in provincias.items():
-                        for distrito in distritos.keys():
-                            resultado.append(f"{distrito}, {provincia}")
+                        for distrito in distritos:
+                            resultado.append(f"{distrito}, {provincia}, {departamento}")
                 return sorted(resultado)
 
             elif clave == "empresas":
@@ -238,6 +238,7 @@ def leer_desde_json(clave):
     except Exception as e:
         print(f"Error al leer JSON: {e}")
         return []
+
 
 
 @app.route("/api/debug-json", methods=["GET"])
