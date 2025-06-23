@@ -179,6 +179,41 @@ def buscar_credencial_por_numero(numero):
         cur.close()
         conn.close()
         raise e
+    
+
+
+
+
+# /api/empresas
+@app.route("/api/empresas", methods=["GET"])
+def obtener_empresas():
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT empresa FROM credenciales WHERE empresa IS NOT NULL AND empresa <> ''")
+        empresas = [row[0] for row in cur.fetchall()]
+        cur.close()
+        conn.close()
+        return jsonify(empresas)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# /api/ubicaciones
+@app.route("/api/ubicaciones", methods=["GET"])
+def obtener_ubicaciones():
+    try:
+        conn = get_connection()
+        cur = conn.cursor()
+        cur.execute("SELECT DISTINCT ubicacion FROM credenciales WHERE ubicacion IS NOT NULL AND ubicacion <> ''")
+        ubicaciones = [row[0] for row in cur.fetchall()]
+        cur.close()
+        conn.close()
+        return jsonify(ubicaciones)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+
 
 # ---------- EJECUCIÓN LOCAL ----------
 if __name__ == "__main__":
